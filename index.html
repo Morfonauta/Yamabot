@@ -188,10 +188,10 @@
         shapeGlowColor: '#00E0FF',
         shapeGlowBlur: 20,
         shapeGlowOpacity: 0.6,
-        textPointSamplingStep: 2,
-        textFontFamily: "Helvetica, Arial, sans-serif",
+        textPointSamplingStep: 2, // Potrebbe essere necessario aggiustare questo per "🤖" per avere più o meno dettagli
+        textFontFamily: "Helvetica, Arial, sans-serif", // Assicurati che questo font supporti l'emoji robot
         textToShow: "Y",
-        E55TextToShow: "E55",
+        robotTextToShow: "🤖", // MODIFICATO: da E55TextToShow a robotTextToShow e valore cambiato
         availableShapes: ['circle', 'square', 'hexagon', 'infinity']
     };
     let currentSettings = { ...defaultSettings };
@@ -231,7 +231,7 @@
         assignTargetColor(c){ this.targetColor=c; this.color = c || this.defaultColor; }
         revertToDefaultColor(){ this.targetColor=null; this.color = this.defaultColor; }
         update(){
-            if (animationMode.includes('forming') || animationMode.includes('Displayed')) {
+            if (animationMode.includes('forming') || animationMode.includes('Displayed')) { // 'formingRobot' o 'robotDisplayed' rientreranno qui
                 if (this.targetX !== null && this.targetY !== null && !this.isAtTarget) {
                     const dx = this.targetX - this.x, dy = this.targetY - this.y, d = Math.sqrt(dx*dx+dy*dy);
                     if(d > 0.5){ this.x += dx * currentSettings.formationEasing; this.y += dy * currentSettings.formationEasing; }
@@ -273,8 +273,8 @@
             canvas.width = newWidth; canvas.height = newHeight;
             if (animationMode === 'formingText' || animationMode === 'textDisplayed') {
                 assignTargetPoints(processTextToPoints(currentSettings.textToShow, particleColorInput.value), 'formingText');
-            } else if (animationMode === 'formingE55' || animationMode === 'E55Displayed') {
-                assignTargetPoints(processTextToPoints(currentSettings.E55TextToShow, particleColorInput.value), 'formingE55');
+            } else if (animationMode === 'formingRobot' || animationMode === 'robotDisplayed') { // MODIFICATO: E55 -> Robot
+                assignTargetPoints(processTextToPoints(currentSettings.robotTextToShow, particleColorInput.value), 'formingRobot'); // MODIFICATO
             } else { init(true); }
         } else if (particlesArray.length === 0 && currentSettings.particleCount > 0 && animationMode === 'cloud') {
             init(true);
@@ -295,18 +295,26 @@
 
         let fS_factor_width, fS_factor_height;
 
-        if (textToDraw === currentSettings.E55TextToShow) {
-            fS_factor_width = 0.8;
-            fS_factor_height = 0.6;
+        if (textToDraw === currentSettings.robotTextToShow) { // MODIFICATO: E55 -> Robot
+            // L'emoji è un singolo carattere, potrebbe aver bisogno di fattori diversi da "E55"
+            // Iniziamo con fattori che lo rendano abbastanza grande, da aggiustare se necessario
+            fS_factor_width = 0.5;  // Aggiustare questi valori per "🤖"
+            fS_factor_height = 0.7; // Aggiustare questi valori per "🤖"
         } else if (textToDraw === "Y") {
-            fS_factor_width = 0.70 * 0.8;  // circa 0.56
-            fS_factor_height = 0.80 * 0.8; // circa 0.64
-        } else {
+            fS_factor_width = 0.70 * 0.8;
+            fS_factor_height = 0.80 * 0.8;
+        } else { // Default per altri testi
             fS_factor_width = 0.65;
             fS_factor_height = 0.45;
         }
 
         let fS_based_on_width = Math.floor(canvas.width / (textToDraw.length * fS_factor_width));
+        // Per un singolo emoji, textToDraw.length è 1 (o 2 per alcuni emoji complessi, ma 🤖 è 1 in pratica JS)
+        // Quindi rendiamo fS_factor_width più piccolo per compensare
+        if (textToDraw === currentSettings.robotTextToShow) {
+             fS_based_on_width = Math.floor(canvas.width * fS_factor_width); // Non dividere per length
+        }
+
         let fS_based_on_height = Math.floor(canvas.height * fS_factor_height);
         let fS = Math.min(fS_based_on_width, fS_based_on_height);
         fS = Math.max(fS, 15);
@@ -321,19 +329,18 @@
         }
 
         const metrics = tempCtx.measureText(textToDraw);
-        // Stima l'altezza del testo. actualBoundingBoxAscent/Descent potrebbero non essere supportate ovunque o dare 0.
-        const ascent = metrics.actualBoundingBoxAscent || (fS * 0.75); // Stima approssimativa se non disponibile
-        const descent = metrics.actualBoundingBoxDescent || (fS * 0.25); // Stima approssimativa
+        const ascent = metrics.actualBoundingBoxAscent || (fS * 0.75);
+        const descent = metrics.actualBoundingBoxDescent || (fS * 0.25);
         const textHeight = ascent + descent;
 
         tempCvs.width = Math.ceil(tW) || 1;
-        tempCvs.height = Math.ceil(textHeight * 1.1) || Math.ceil(fS * 1.1) || 1; // Aggiungi 10% di margine
+        tempCvs.height = Math.ceil(textHeight * 1.1) || Math.ceil(fS * 1.1) || 1;
 
-        tempCtx.font = `bold ${fS}px ${currentSettings.textFontFamily}`; // Reimposta il font
-        tempCtx.fillStyle = '#fff';
+        tempCtx.font = `bold ${fS}px ${currentSettings.textFontFamily}`;
+        tempCtx.fillStyle = '#fff'; // Colore per il rendering su canvas temporaneo
         tempCtx.textAlign = 'left';
-        tempCtx.textBaseline = 'middle';
-        tempCtx.fillText(textToDraw, 0, tempCvs.height / 2);
+        tempCtx.textBaseline = 'middle'; // Allineare l'emoji verticalmente può essere complicato
+        tempCtx.fillText(textToDraw, 0, tempCvs.height / 2); // Prova ad allineare al centro
 
         const pts = [];
         const dynamicTextColor = dynamicTextColorOverride || particleColorInput.value;
@@ -344,14 +351,14 @@
                 const data = imgData.data;
                 for (let y = 0; y < tempCvs.height; y += currentSettings.textPointSamplingStep) {
                     for (let x = 0; x < tempCvs.width; x += currentSettings.textPointSamplingStep) {
-                        if (data[(y * tempCvs.width + x) * 4 + 3] > 128) {
+                        if (data[(y * tempCvs.width + x) * 4 + 3] > 128) { // Controlla il canale alfa
                             pts.push({ x: x, y: y, color: dynamicTextColor });
                         }
                     }
                 }
             } catch (e) {
-                console.error("Errore durante getImageData per il testo:", e);
-                if (errorMessageDiv) errorMessageDiv.textContent = "Errore nell'elaborazione del testo.";
+                console.error("Errore durante getImageData per il testo:", e, "Testo:", textToDraw);
+                if (errorMessageDiv) errorMessageDiv.textContent = "Errore nell'elaborazione del testo/emoji.";
                 return [];
             }
         }
@@ -382,9 +389,9 @@
         let allAtTarget = true;
         if(particlesArray.length>0){
             for(let i=0;i<particlesArray.length;i++){particlesArray[i].update();particlesArray[i].draw();
-                if((animationMode==='formingText' || animationMode === 'formingE55') && !particlesArray[i].isAtTarget && particlesArray[i].targetX > -500){allAtTarget=false;}}}
+                if((animationMode==='formingText' || animationMode === 'formingRobot') && !particlesArray[i].isAtTarget && particlesArray[i].targetX > -500){allAtTarget=false;}}} // MODIFICATO: E55 -> Robot
         if(animationMode==='formingText' && allAtTarget && currentTargetPoints.length>0){animationMode='textDisplayed';}
-        else if(animationMode==='formingE55' && allAtTarget && currentTargetPoints.length > 0) { animationMode = 'E55Displayed';}
+        else if(animationMode==='formingRobot' && allAtTarget && currentTargetPoints.length > 0) { animationMode = 'robotDisplayed';} // MODIFICATO: E55 -> Robot
         if(currentSettings.connectionLines==='on')connectParticles();
         animationFrameId=requestAnimationFrame(animateWithMouse);
     }
@@ -403,7 +410,7 @@
                     let lnHex = currentSettings.lineColor, glHex = currentSettings.lineColor;
                     let glBlur = currentSettings.defaultGlowBlur, glOp = op * currentSettings.glowOpacityFactor;
 
-                    if (animationMode.includes('Text') || animationMode.includes('E55')) {
+                    if (animationMode.includes('Text') || animationMode.includes('Robot')) { // MODIFICATO: E55 -> Robot (o più generico)
                         lnHex = particlesArray[a].color || particleColorInput.value;
                         glHex = currentSettings.shapeGlowColor;
                         glBlur = currentSettings.shapeGlowBlur;
@@ -440,11 +447,11 @@
             if(isNaN(currentSettings.particleSpeed) || currentSettings.particleSpeed <=0) { currentSettings.particleSpeed = 0.1; particleSpeedInput.value = currentSettings.particleSpeed; }
             if (animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; frameCount = 0;
             init(true); animateWithMouse();
-        } else { // Se non è reset o cloud mode, ma cambiano colori o linee, non serve rifare init() ma solo ridisegnare
+        } else {
              if (animationMode === 'formingText' || animationMode === 'textDisplayed') {
-                assignTargetPoints(processTextToPoints(currentSettings.textToShow, particleColorInput.value), animationMode); // Mantiene la modalità testo
-            } else if (animationMode === 'formingE55' || animationMode === 'E55Displayed') {
-                assignTargetPoints(processTextToPoints(currentSettings.E55TextToShow, particleColorInput.value), animationMode); // Mantiene la modalità E55
+                assignTargetPoints(processTextToPoints(currentSettings.textToShow, particleColorInput.value), animationMode);
+            } else if (animationMode === 'formingRobot' || animationMode === 'robotDisplayed') { // MODIFICATO: E55 -> Robot
+                assignTargetPoints(processTextToPoints(currentSettings.robotTextToShow, particleColorInput.value), animationMode);
             }
         }
     }
@@ -482,53 +489,58 @@
     let lastTapTime = 0; let lastClickTime = 0;
     const doubleTapTimeout = 300;
 
+    // Gestore per il doppio tap (touch)
     canvas.addEventListener('touchend', function(event) {
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastTapTime;
         if (tapLength < doubleTapTimeout && tapLength > 0) {
             event.preventDefault();
-            console.log("Double tap on canvas detected for E55.");
-            if (animationMode === 'cloud' || animationMode === 'textDisplayed' || animationMode === 'E55Displayed') {
+            console.log("Double tap on canvas detected for Robot."); // MODIFICATO
+            if (animationMode === 'cloud' || animationMode === 'textDisplayed' || animationMode === 'robotDisplayed') { // MODIFICATO
                 const capturedColor = particleColorInput.value;
-                assignTargetPoints(processTextToPoints(currentSettings.E55TextToShow, capturedColor), 'formingE55');
-            } else if (animationMode === 'formingE55') {
+                assignTargetPoints(processTextToPoints(currentSettings.robotTextToShow, capturedColor), 'formingRobot'); // MODIFICATO
+            } else if (animationMode === 'formingRobot') { // MODIFICATO
                 updateSettingsAndRestart(true);
             }
-            lastTapTime = 0;
+            lastTapTime = 0; // Resetta per evitare tripli/quadrupli tap come doppi
         } else {
             lastTapTime = currentTime;
         }
     });
 
+    // Gestore per il doppio click (mouse)
     canvas.addEventListener('click', function(event) {
         const currentTime = new Date().getTime();
         const clickLength = currentTime - lastClickTime;
         if (clickLength < doubleTapTimeout && clickLength > 0) {
-            console.log("Double click on canvas detected for E55.");
-            if (animationMode === 'cloud' || animationMode === 'textDisplayed' || animationMode === 'E55Displayed') {
+            console.log("Double click on canvas detected for Robot."); // MODIFICATO
+            if (animationMode === 'cloud' || animationMode === 'textDisplayed' || animationMode === 'robotDisplayed') { // MODIFICATO
                 const capturedColor = particleColorInput.value;
-                assignTargetPoints(processTextToPoints(currentSettings.E55TextToShow, capturedColor), 'formingE55');
-            } else if (animationMode === 'formingE55') {
+                assignTargetPoints(processTextToPoints(currentSettings.robotTextToShow, capturedColor), 'formingRobot'); // MODIFICATO
+            } else if (animationMode === 'formingRobot') { // MODIFICATO
                 updateSettingsAndRestart(true);
             }
-            lastClickTime = 0;
+            lastClickTime = 0; // Resetta
         } else {
             lastClickTime = currentTime;
         }
     });
 
+
     function handleTouchStart(e) { if (e.touches.length > 0) { updateMouseCoords(e.touches[0].clientX, e.touches[0].clientY); canvas.style.cursor = 'grabbing'; } }
     function handleTouchMove(e) { e.preventDefault(); if (e.touches.length > 0) updateMouseCoords(e.touches[0].clientX, e.touches[0].clientY); }
-    function handleTouchEnd(e) {
+    function handleTouchEnd(e) { // Questo è per il mouse up dopo un drag con touch
         if (e.touches.length === 0 && e.changedTouches.length > 0) {
             const rect = canvas.getBoundingClientRect(); const lT = e.changedTouches[0];
             const iO = lT.clientX >= rect.left && lT.clientX <= rect.right && lT.clientY >= rect.top && lT.clientY <= rect.bottom;
             if (!iO) { mouse.x = undefined; mouse.y = undefined; canvas.style.cursor = 'grab'; }
-            else { canvas.style.cursor = 'crosshair'; }
+            else { canvas.style.cursor = 'crosshair'; } // Ripristina a crosshair se ancora sopra
         }
     }
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    // Non serve aggiungere un altro 'touchend' qui, quello per il doppio tap è sufficiente
+    // e 'handleTouchEnd' gestisce la fine del drag.
 
     function applyMouseForce() {
         if (animationMode !== 'cloud' || mouse.x === undefined || mouse.y === undefined) return;
